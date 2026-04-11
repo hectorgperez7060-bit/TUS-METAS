@@ -1,0 +1,163 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+    function isInviter() {
+      return isAuthenticated() && request.auth.uid == resource.data.invitedBy;
+    }
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidNotification(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() < 100 &&
+             data.message is string && data.message.size() > 0 && data.message.size() < 1000 &&
+             data.time is string &&
+             data.read is bool &&
+             data.type in ['task_added', 'task_completed', 'task_deleted', 'status_changed', 'Alarma', 'Perfil actualizado', 'Miembro Invitado', 'Miembro eliminado', 'Nuevo objetivo', 'Nueva tarea', 'Tarea modificada', 'Fecha modificada', 'Prioridad modificada', 'Tarea asignada'] &&
+             data.userId is string &&
+             data.teamId is string;
+    }
+
+    function isValidMail(data) {
+      return data.to is string && isValidEmail(data.to) &&
+             data.userId is string &&
+             data.teamId is string &&
+             data.message is map &&
+             data.message.subject is string && data.message.subject.size() > 0 &&
+             data.message.text is string && data.message.text.size() > 0;
+    }
+
+    function isValidTask(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.completed is bool &&
+             data.project is string &&
+             data.priority in ['Baja', 'Media', 'Alta'] &&
+             data.status in ['Todo', 'InProgress', 'Done'] &&
+             data.userId is string &&
+             data.teamId is string;
+    }
+
+    function isValidGoal(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.progress is number && data.progress >= 0 && data.progress <= 100 &&
+             data.category is string &&
+             data.userId is string &&
+             data.teamId is string;
+    }
+
+    function isValidProject(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.status in ['Pendiente', 'Activo', 'Finalizado'] &&
+             data.userId is string &&
+             data.teamId is string;
+    }
+
+    function isValidPortfolio(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.projectIds is list &&
+             data.userId is string &&
+             data.teamId is string;
+    }
+
+    function isValidTeamMember(data) {
+      return data.email is string && isValidEmail(data.email) &&
+             data.name is string && data.name.size() > 0 &&
+             data.invitedBy is string &&
+             data.status is string;
+    }
+
+    function isValidUserProfile(data) {
+      return data.name is string && data.name.size() > 0 &&
+             data.email is string && isValidEmail(data.email) &&
+             data.photoUrl is string &&
+             data.role in ['Administrador', 'Colaborador', 'Observador'] &&
+             (!('theme' in data) || data.theme in ['light', 'dark']) &&
+             (!('language' in data) || data.language in ['es', 'en']) &&
+             (!('compactView' in data) || data.compactView is bool) &&
+             (!('notifEmail' in data) || data.notifEmail is bool) &&
+             (!('notifWhatsapp' in data) || data.notifWhatsapp is bool) &&
+             (!('teamId' in data) || data.teamId is string);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidUserProfile(request.resource.data);
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.teamId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamId);
+      allow create: if isAuthenticated() && isValidNotification(request.resource.data) && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.teamId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamId) && isValidNotification(request.resource.data);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /mail/{mailId} {
+      // Users can only create mail, not read or update (for security)
+      allow create: if isAuthenticated() && isValidMail(request.resource.data);
+      allow read, update, delete: if false; // Only Cloud Functions should handle this
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.teamId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamId);
+      allow create: if isAuthenticated() && isValidTask(request.resource.data) && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.teamId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamId) && isValidTask(request.resource.data);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /goals/{goalId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.teamId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamId);
+      allow create: if isAuthenticated() && isValidGoal(request.resource.data) && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.teamId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamId) && isValidGoal(request.resource.data);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /projects/{projectId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.teamId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamId);
+      allow create: if isAuthenticated() && isValidProject(request.resource.data) && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.teamId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamId) && isValidProject(request.resource.data);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /portfolios/{portfolioId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.teamId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamId);
+      allow create: if isAuthenticated() && isValidPortfolio(request.resource.data) && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.teamId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamId) && isValidPortfolio(request.resource.data);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /team/{memberId} {
+      allow read: if isAuthenticated() && (resource.data.teamId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamId || resource.data.email == request.auth.token.email);
+      allow create: if isAuthenticated() && isValidTeamMember(request.resource.data) && 
+                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Administrador', 'Editor'] &&
+                    request.resource.data.teamId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamId;
+      allow update: if isAuthenticated() && 
+                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Administrador', 'Editor'] &&
+                    resource.data.teamId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamId &&
+                    isValidTeamMember(request.resource.data);
+      allow delete: if isAuthenticated() && 
+                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Administrador', 'Editor'] &&
+                    resource.data.teamId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamId;
+    }
+  }
+}

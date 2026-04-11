@@ -1,0 +1,156 @@
+{
+  "entities": {
+    "Notification": {
+      "title": "Notification",
+      "description": "A notification sent to a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "time": { "type": "string" },
+        "read": { "type": "boolean" },
+        "type": { "type": "string", "enum": ["task_added", "task_completed", "task_deleted", "status_changed"] },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "title", "message", "time", "read", "type", "userId"]
+    },
+    "Mail": {
+      "title": "Mail",
+      "description": "An email to be sent via SendGrid.",
+      "type": "object",
+      "properties": {
+        "to": { "type": "string" },
+        "message": {
+          "type": "object",
+          "properties": {
+            "subject": { "type": "string" },
+            "text": { "type": "string" },
+            "html": { "type": "string" }
+          },
+          "required": ["subject", "text"]
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["to", "message", "createdAt"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A task assigned to a user or project.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "project": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "priority": { "type": "string", "enum": ["Baja", "Media", "Alta"] },
+        "status": { "type": "string", "enum": ["Todo", "InProgress", "Done"] },
+        "assigneeId": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["title", "completed", "project", "priority", "status", "userId"]
+    },
+    "Goal": {
+      "title": "Goal",
+      "description": "A goal set by a user.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "progress": { "type": "number" },
+        "category": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["title", "progress", "category", "userId"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "A project containing tasks and members.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pendiente", "Activo", "Finalizado"] },
+        "description": { "type": "string" },
+        "avisoId": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["name", "status", "userId"]
+    },
+    "Portfolio": {
+      "title": "Portfolio",
+      "description": "A collection of projects.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "projectIds": { "type": "array", "items": { "type": "string" } },
+        "userId": { "type": "string" }
+      },
+      "required": ["name", "projectIds", "userId"]
+    },
+    "TeamMember": {
+      "title": "TeamMember",
+      "description": "A member of a user's team.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "role": { "type": "string" },
+        "invitedBy": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "name", "invitedBy", "status"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "A user's profile information.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "role": { "type": "string", "enum": ["Administrador", "Colaborador", "Observador"] },
+        "theme": { "type": "string", "enum": ["light", "dark"] },
+        "language": { "type": "string", "enum": ["es", "en"] },
+        "compactView": { "type": "boolean" },
+        "notifEmail": { "type": "boolean" },
+        "notifWhatsapp": { "type": "boolean" }
+      },
+      "required": ["name", "email", "photoUrl", "role"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles."
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "User notifications."
+    },
+    "/mail/{mailId}": {
+      "schema": "Mail",
+      "description": "Emails to be sent."
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "User tasks."
+    },
+    "/goals/{goalId}": {
+      "schema": "Goal",
+      "description": "User goals."
+    },
+    "/projects/{projectId}": {
+      "schema": "Project",
+      "description": "User projects."
+    },
+    "/portfolios/{portfolioId}": {
+      "schema": "Portfolio",
+      "description": "User portfolios."
+    },
+    "/team/{memberId}": {
+      "schema": "TeamMember",
+      "description": "Team members invited by the user."
+    }
+  }
+}

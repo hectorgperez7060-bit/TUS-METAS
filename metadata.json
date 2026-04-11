@@ -1,0 +1,5 @@
+{
+  "name": "TUS-METAS",
+  "description": "Una aplicación funcional de gestión de tareas y objetivos para maximizar tu productividad.",
+  "requestFramePermissions": ["camera"]
+}
